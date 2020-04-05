@@ -348,7 +348,7 @@ export default [
     keycode: '32',
   },
   {
-    symbol: 'AltGraph',
+    symbol: 'Alt',
     shift: null,
     code: 'AltRight',
     keycode: '225',

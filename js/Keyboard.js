@@ -9,11 +9,16 @@ const main = create('main', '', create('h1', 'title', 'RSS Virtual Keyboard'));
 export default class Keyboard {
   constructor(rowsOrder) {
     this.rowsOrder = rowsOrder;
+    this.keysPressed = {};
 
   }
 
   init(code) {
     this.keyBase = language[code];
+    this.output = create('textarea', 'output', null, main,
+      ['placeholder', 'Start typing something... ;)'],
+      ['rows', 5],
+      ['cols', 50]);
     this.container = create('div', 'keyboard', null, main, ['language', code]);
     document.body.prepend(main);
     return this;
@@ -31,15 +36,62 @@ export default class Keyboard {
         if (keyObj) {
           const keyButton = new Key(keyObj);
           this.keyButtons.push(keyButton);
-          rowElement.appendChild(keyButton.container);
+          rowElement.appendChild(keyButton.div);
         }
       });
     });
     document.onkeydown = this.handleKeyDownEvent;
+    document.onkeyup = this.handleKeyUpEvent;
   }
 
-  handleKeyDownEvent = (e) => {
 
+
+  handleKeyUpEvent = ({code}) => {
+    console.log(this.keysPressed[code]);
+    const keyObj = this.keysPressed[code];
+    if (keyObj) {
+      keyObj.div.classList.remove('active');
+      if (keyObj.isFnKey && keyObj.symbol === 'Shift') this.switchUpperCase(false);
+    }
   }
 
+  handleKeyDownEvent = ({ code }) => {
+    this.output.focus();
+    const keyObj = this.keyButtons.find((key) => key.code === code);
+        if (keyObj) {
+          if (keyObj.isFnKey && keyObj.symbol === 'Shift') this.switchUpperCase(true);
+          console.log(keyObj);
+
+          keyObj.div.classList.add('active')
+          this.keysPressed[keyObj.code] = keyObj;
+          console.log(this.keysPressed);
+          // this.keysPressed.forEach((button) => button.container.classList.add('active'));
+        }
+  }
+
+  subscribeToRelease = (e) => {
+    console.log(e.target);
+  }
+
+  switchUpperCase(isTrue) {
+    if (isTrue) {
+      this.keyButtons.forEach((button) => {
+        if (button.sub) {
+          button.sub.classList.add('sub-active');
+          button.letter.classList.add('sub-inactive');
+        } else if (!button.isFnKey){
+          button.letter.innerText = button.shift;
+        }
+      })
+    } else {
+      this.keyButtons.forEach((button) => {
+        if (button.sub) {
+          button.sub.classList.remove('sub-active');
+          button.letter.classList.remove('sub-inactive');
+        } else if (!button.isFnKey){
+          button.letter.innerText = button.symbol;
+        }
+      })
+    }
+  }
 }

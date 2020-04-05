@@ -34,7 +34,7 @@ export default function create(el, classNames = '', child, parent, ...dataAttr) 
         element.setAttribute(attrName, '');
         return;
       }
-      if (attrName.match(/value|id|placeholder/ig)) {
+      if (attrName.match(/value|id|placeholder|cols|rows|/ig)) {
         element.setAttribute(attrName, attrValue);
       } else {
         element.dataset[attrName] = attrValue;
