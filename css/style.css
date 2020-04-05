@@ -7,3 +7,12 @@ html {
   font-size: 100%;
   font-family: 'Ubuntu', Arial, sans-serif;
 }
+
+main {
+  width: 1020px;
+  margin: auto;
+}
+
+.keyboard__row {
+  display: grid;
+}
