@@ -9,7 +9,7 @@ export default class Key {
     this.shift = shift;
     this.symbol = symbol;
     this.keycode = keycode;
-    this.isFnKey = Boolean(code.indexOf(symbol) + 1);
+    this.isFnKey = Boolean(code.indexOf(symbol.slice(1) || false) + 1);
     if (shift && shift.match(/[^a-zA-Zа-яА-ЯёЁ0-9]/g)) {
       this.sub = create('div', 'sub', this.shift);
     }

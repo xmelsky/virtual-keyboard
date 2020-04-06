@@ -20,9 +20,12 @@ export default class Keyboard {
       ['rows', 5],
       ['cols', 50]);
     this.container = create('div', 'keyboard', null, main, ['language', code]);
+    this.message = create('div', 'message');
+    this.overlay = create('div', 'overlay', this.message, this.container );
     document.body.prepend(main);
     return this;
   }
+
 
   generateLayout() {
     this.keyButtons = [];
@@ -42,35 +45,80 @@ export default class Keyboard {
     });
     document.onkeydown = this.handleKeyDownEvent;
     document.onkeyup = this.handleKeyUpEvent;
+    document.onvisibilitychange = this.resetPressedButtons;
+  }
+
+  showSplash(message) {
+    this.message.innerText = message;
+    this.message.classList.add('show-splash');
+    this.overlay.classList.add('show');
+    setTimeout(() => {
+      this.message.classList.remove('show-splash');
+      this.overlay.classList.remove('show');
+    }, 2000);
   }
 
 
-
   handleKeyUpEvent = ({code}) => {
-    console.log(this.keysPressed[code]);
     const keyObj = this.keysPressed[code];
+    delete this.keysPressed[code];
     if (keyObj) {
       keyObj.div.classList.remove('active');
       if (keyObj.isFnKey && keyObj.symbol === 'Shift') this.switchUpperCase(false);
     }
   }
 
-  handleKeyDownEvent = ({ code }) => {
-    this.output.focus();
-    const keyObj = this.keyButtons.find((key) => key.code === code);
-        if (keyObj) {
-          if (keyObj.isFnKey && keyObj.symbol === 'Shift') this.switchUpperCase(true);
-          console.log(keyObj);
+  resetPressedButtons = () => {
+    const pressed = Object.keys(this.keysPressed);
+    pressed.forEach((code) => {
+      this.keysPressed[code].div.classList.remove('active');
+      delete this.keysPressed[code];
+    })
+  }
 
-          keyObj.div.classList.add('active')
-          this.keysPressed[keyObj.code] = keyObj;
-          console.log(this.keysPressed);
-          // this.keysPressed.forEach((button) => button.container.classList.add('active'));
-        }
+keepFocus() {
+  const start = this.output.selectionStart;
+  const end = this.output.selectionEnd;
+  this.output.focus();
+  // if (start !== end && this.output.setSelectionRange) {
+  //   this.output.setSelectionRange(start, end);
+  // } else if(start !== end && this.createTextRange) {
+  //   const range = this.createTextRange();
+  //   range.collapse(true);
+  //   range.moveEnd('character', end);
+  //   range.moveStart('character', start);
+  //   range.select();
+  // }
+}
+
+  handleKeyDownEvent = (e) => {
+    const { code, ctrlKey, shiftKey, metaKey } = e;
+    this.keepFocus();
+    const keyObj = this.keyButtons.find((key) => key.code === code);
+      if (keyObj) {
+        if (keyObj.isFnKey && !keyObj.code.match(/ArrowLeft|ArrowUp|ArrowDown|ArrowRight|Delete|Backspace|Enter/i)
+          || !keyObj.isFnKey && !ctrlKey || shiftKey && !keyObj.code.match(/ArrowLeft|ArrowUp|ArrowDown|ArrowRight/i)
+        ) {
+          e.preventDefault();
+          this.fireKeyPress(keyObj, shiftKey ? keyObj.shift : keyObj.symbol);
+        };
+        if (keyObj.isFnKey && shiftKey) this.switchUpperCase(true);
+        if (keyObj.isFnKey && shiftKey && ctrlKey
+          || keyObj.isFnKey && ctrlKey && shiftKey) this.switchLanguage();
+        keyObj.div.classList.add('active')
+        this.keysPressed[keyObj.code] = keyObj;
+      }
+  }
+
+  switchLanguage = () => {
+    const langAbbr = Object.keys(language);
+    let langIdx = langAbbr.indexOf( this.container.dataset.language );
+    this.keyBase = langIdx + 1 <= langAbbr.length ? language[langAbbr[++langIdx]] : language[langAbbr[langIdx-=langIdx]];
+    this.showSplash(`Switched language: ${langAbbr[langIdx][0].toUpperCase()}${langAbbr[langIdx].slice(1)}`)
   }
 
   subscribeToRelease = (e) => {
-    console.log(e.target);
+    // console.log(e.target);
   }
 
   switchUpperCase(isTrue) {
@@ -93,5 +141,28 @@ export default class Keyboard {
         }
       })
     }
+  }
+
+  fireKeyPress(keyObj, symbol) {
+    let cursorPos = this.output.selectionStart;
+    const part1 = this.output.value.slice(0,cursorPos);
+    const part2 = this.output.value.slice(cursorPos);
+
+    console.log(cursorPos);
+    const pressHandlers = {
+      'Tab': () => {
+        this.output.value = `${part1}    ${part2}`;
+        cursorPos += 4;
+      },
+    }
+    if (pressHandlers[keyObj.code]) {
+      pressHandlers[keyObj.code]();
+    } else if(!keyObj.isFnKey) {
+      cursorPos += 1;
+      this.output.value = `${part1}${symbol|| ''}${part2}`;
+    }
+
+    // this.output.focus();
+    this.output.setSelectionRange(cursorPos, cursorPos);
   }
 }
