@@ -8,8 +8,8 @@ import Key from './Key.js';
 
 const main = create('main', '',
   [create('h1', 'title', 'RSS Virtual Keyboard'),
-    create('h3', 'subtitle', 'Windows keyboard'),
-    create('p', 'hint', 'Use <kbd>Ctrl</kbd> + <kbd>Alt</kbd> to switch language. Last language saves in localStorage')]);
+    create('h3', 'subtitle', 'Windows keyboard that has been made under Linux'),
+    create('p', 'hint', 'Use left <kbd>Ctrl</kbd> + <kbd>Alt</kbd> to switch language. Last language saves in localStorage')]);
 
 export default class Keyboard {
   constructor(rowsOrder) {
@@ -60,8 +60,11 @@ export default class Keyboard {
       if (!keyObj.code.match(/Caps/) || (keyObj.code.match(/Caps/) && !this.isCaps)) {
         keyObj.div.classList.remove('active');
       }
-      if (keyObj.isFnKey && keyObj.symbol === 'Shift' && !this.isCaps) {
+      if (keyObj.isFnKey && keyObj.small === 'Shift' && !this.isCaps) {
         this.switchUpperCase(false);
+      } else if (keyObj.isFnKey && keyObj.small === 'Shift' && this.isCaps) {
+        this.shiftKey = false;
+        this.switchUpperCase(false, true);
       }
     }
   }
@@ -70,7 +73,7 @@ export default class Keyboard {
     const pressed = Object.keys(this.keysPressed);
     clearTimeout(this.timeOut); clearInterval(this.interval);
     pressed.forEach((code) => {
-      if (targetCode && targetCode === code && this.keysPressed[code].symbol === 'Shift') {
+      if (targetCode && targetCode === code && this.keysPressed[code].small === 'Shift') {
         this.shiftKey = false;
         this.switchUpperCase(false);
         delete this.keysPressed[code];
@@ -84,12 +87,12 @@ export default class Keyboard {
 
   handleKeyDownEvent = (e) => {
     const { code, ctrlKey, shiftKey } = e;
-
     this.output.focus();
     const keyObj = this.keyButtons.find((key) => key.code === code);
     if (keyObj) {
-      if (!e.type && keyObj.isFnKey && keyObj.symbol === 'Shift') this.shiftKey = true;
-      if (keyObj.symbol === 'Shift') this.switchUpperCase(true);
+      if (!e.type && keyObj.isFnKey && keyObj.small === 'Shift') this.shiftKey = true;
+      if (e.type && keyObj.isFnKey && keyObj.small === 'Shift') this.shiftKey = true;
+      if (keyObj.small === 'Shift') this.switchUpperCase(true, shiftKey || this.shiftKey);
 
       if (keyObj.code.match(/Caps/) && !this.isCaps) {
         this.isCaps = true;
@@ -107,8 +110,13 @@ export default class Keyboard {
       const regexp = /Tab|ArrowLeft|ArrowUp|ArrowDown|ArrowRight|Delete|Backspace|Enter/i;
       if ((!keyObj.isFnKey && !ctrlKey) || keyObj.code.match(/Tab|Alt/) || (!e.type && keyObj.code.match(regexp))) {
         if (e.type) e.preventDefault();
-        this.fireKeyPress(keyObj, (shiftKey || this.shiftKey || this.isCaps)
-          ? keyObj.shift : keyObj.symbol);
+        this.fireKeyPress(keyObj,
+          ((shiftKey && !this.isCaps)
+          || (this.shiftKey && !this.isCaps)
+          || ((shiftKey || this.shiftKey) && this.isCaps && keyObj.sub.innerText)
+          || (this.isCaps && !keyObj.sub.innerText)
+          || (this.isCaps && (this.shiftKey || shiftKey) && keyObj.sub.innerText))
+            ? keyObj.shift : keyObj.small);
       }
       keyObj.div.classList.add('active');
       this.keysPressed[keyObj.code] = keyObj;
@@ -133,25 +141,25 @@ export default class Keyboard {
       const keyObj = this.keyBase.find((key) => key.code === button.code);
       if (!keyObj) return;
       button.shift = keyObj.shift;
-      button.symbol = keyObj.symbol;
+      button.small = keyObj.small;
       if (keyObj.shift && keyObj.shift.match(/[^a-zA-Zа-яА-ЯёЁ0-9]/g)) {
         button.sub.innerHTML = keyObj.shift;
       } else {
         button.sub.innerHTML = '';
       }
-      button.letter.innerHTML = keyObj.symbol;
+      button.letter.innerHTML = keyObj.small;
       if (!button.isFnKey) button.letter.classList.toggle('changed');
     });
     if (this.isCaps) this.switchUpperCase(true);
   }
 
-  switchUpperCase(isTrue) {
+  switchUpperCase(isTrue, isShiftKey) {
     if (isTrue) {
       if (!this.isCaps) this.shiftKey = true;
       this.keyButtons.forEach((button) => {
         if (button.sub) {
-          button.sub.classList.add('sub-active');
-          button.letter.classList.add('sub-inactive');
+          if (!this.isCaps || (this.isCaps && isShiftKey)) button.sub.classList.add('sub-active');
+          if (!this.isCaps || (this.isCaps && isShiftKey)) button.letter.classList.add('sub-inactive');
           if (!button.isFnKey && button.shift && button.shift.match(/[a-zA-Zа-яА-ЯёЁ0-9]/i)) {
             button.letter.innerHTML = button.shift;
           }
@@ -163,7 +171,9 @@ export default class Keyboard {
         if (button.sub) {
           button.sub.classList.remove('sub-active');
           button.letter.classList.remove('sub-inactive');
-          if (!button.isFnKey && !button.sub.value) button.letter.innerHTML = button.symbol;
+          if (!button.isFnKey && !button.sub.value && !this.isCaps) {
+            button.letter.innerHTML = button.small;
+          }
         }
       });
     }
@@ -198,7 +208,6 @@ export default class Keyboard {
     let cursorPos = this.output.selectionStart;
     const left = this.output.value.slice(0, cursorPos);
     const right = this.output.value.slice(cursorPos);
-
     const textHandlers = {
       Tab: () => {
         this.output.value = `${left}\t${right}`;
@@ -226,6 +235,10 @@ export default class Keyboard {
       Backspace: () => {
         this.output.value = `${left.slice(0, -1)}${right}`;
         cursorPos--;
+      },
+      Space: () => {
+        this.output.value = `${left} ${right}`;
+        cursorPos += 1;
       },
     };
     if (textHandlers[keyObj.code]) textHandlers[keyObj.code]();
