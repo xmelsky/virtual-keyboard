@@ -1,5 +1,7 @@
 # RSS Virtual Keyboard (ru/en)
 
-### simple Windows keyboard layout
+### simple Windows keyboard layout (vanilla JS)
 
-[Original task here](https://github.com/rolling-scopes-school/tasks/blob/master/tasks/codejam-virtual-keyboard.md)
+### Deploy - https://xmelsky.github.io/virtual-keyboard/
+
+
