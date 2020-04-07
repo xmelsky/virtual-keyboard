@@ -22,12 +22,11 @@ export default class Keyboard {
       ['rows', 5],
       ['cols', 50]);
     this.container = create('div', 'keyboard', null, main, ['language', code]);
-    this.message = create('div', 'message');
-    this.overlay = create('div', 'overlay', this.message, this.container);
+    // this.message = create('div', 'message');
+    // this.overlay = create('div', 'overlay', this.message, this.container);
     document.body.prepend(main);
     return this;
   }
-
 
   generateLayout() {
     this.keyButtons = [];
@@ -47,26 +46,11 @@ export default class Keyboard {
     });
     document.onkeydown = this.handleKeyDownEvent;
     document.onkeyup = this.handleKeyUpEvent;
-    document.onvisibilitychange = this.resetPressedButtons;
     this.container.onmousedown = this.generateCustomEvent;
     this.container.onmouseup = this.generateCustomEvent;
-    // this.container.onmouseleave = this.resetPressedButtons;
   }
 
-  showSplash(message) {
-    this.message.innerText = message;
-    this.message.classList.add('show-splash');
-    this.overlay.classList.add('show');
-    setTimeout(() => {
-      this.message.classList.remove('show-splash');
-      this.overlay.classList.remove('show');
-    }, 1000);
-  }
-
-
-  handleKeyUpEvent = (e) => {
-    console.log('keyUP');
-    const { code } = e;
+  handleKeyUpEvent = ({ code }) => {
     const keyObj = this.keysPressed[code];
     delete this.keysPressed[code];
     if (keyObj) {
@@ -77,47 +61,50 @@ export default class Keyboard {
     }
   }
 
-  resetPressedButtons = () => {
+  resetPressedButtons = (targetCode) => {
+    console.log({targetCode});
     const pressed = Object.keys(this.keysPressed);
+    clearTimeout(this.timeOut); clearInterval(this.interval);
     pressed.forEach((code) => {
-      this.keysPressed[code].div.classList.remove('active');
-      delete this.keysPressed[code];
+      if (targetCode && targetCode === code && this.keysPressed[code].symbol === 'Shift') {
+        this.shiftKey = false;
+        this.switchUpperCase(false);
+        this.keysPressed[code].div.classList.remove('active');
+      } else if (code === targetCode) {
+        this.keysPressed[code].div.classList.remove('active');
+        delete this.keysPressed[code];
+      }
+      // this.keysPressed[code].div.removeEventListener('mouseleave', this.resetPressedButtons);
     });
-  }
-
-  keepFocus() {
-    this.output.focus();
   }
 
   handleKeyDownEvent = (e) => {
     const { code, ctrlKey, shiftKey } = e;
 
-    this.keepFocus();
+    this.output.focus();
     const keyObj = this.keyButtons.find((key) => key.code === code);
     if (keyObj) {
-      if (keyObj.isFnKey && keyObj.symbol === 'Shift') {
-        this.shiftKey = true;
+      if (keyObj.isFnKey && keyObj.symbol === 'Shift') this.shiftKey = true;
+
+      if (keyObj.symbol === 'Shift') this.switchUpperCase(true);
+      if ((keyObj.isFnKey && (shiftKey || this.shiftKey) && (ctrlKey || this.ctrlKey))) {
+        this.switchLanguage();
       }
 
-      if (
-        (keyObj.isFnKey
-          && !keyObj.code.match(/ArrowLeft|ArrowUp|ArrowDown|ArrowRight|Delete|Backspace|Enter/i))
-        || (!keyObj.isFnKey && !ctrlKey)
-        || ((shiftKey || this.ctrlKey) && !keyObj.code.match(/ArrowLeft|ArrowUp|ArrowDown|ArrowRight/i))
-      ) {
+      const regexp = /Tab|ArrowLeft|ArrowUp|ArrowDown|ArrowRight|Delete|Backspace|Enter/i;
+      if ((!keyObj.isFnKey && !ctrlKey) || keyObj.code.match(/Tab/) || (!e.type && keyObj.code.match(regexp))) {
         if (e.type) e.preventDefault();
         this.fireKeyPress(keyObj, (shiftKey || this.shiftKey) ? keyObj.shift : keyObj.symbol);
-      } else if (!e.type && keyObj.code.match(/ArrowLeft|ArrowUp|ArrowDown|ArrowRight|Enter|Backspace|Delete/i)) {
-        this.fireKeyPress(keyObj, (shiftKey || this.shiftKey) ? keyObj.shift : keyObj.symbol);
       }
-
-
-      if (keyObj.isFnKey && (shiftKey || this.shiftKey) && keyObj.symbol === 'Shift') this.switchUpperCase(true);
-      if ((keyObj.isFnKey && (shiftKey || this.shiftKey) && (ctrlKey || this.ctrlKey))) this.switchLanguage();
-
       keyObj.div.classList.add('active');
-      this.keysPressed[keyObj.code || keyObj.codeCustom] = keyObj;
+      this.keysPressed[keyObj.code] = keyObj;
+      if (!e.type) keyObj.div.addEventListener('mouseleave', this.resetButtonState, { once: true });
     }
+  }
+
+  resetButtonState = (e) => {
+    console.log(e.target.dataset.code);
+    this.resetPressedButtons(e.target.dataset.code);
   }
 
   switchLanguage = () => {
@@ -125,8 +112,6 @@ export default class Keyboard {
     let langIdx = langAbbr.indexOf(this.container.dataset.language);
     this.keyBase = langIdx + 1 < langAbbr.length ? language[langAbbr[++langIdx]]
       : language[langAbbr[langIdx -= langIdx]];
-
-    this.showSplash(`Switched language: ${langAbbr[langIdx][0].toUpperCase()}${langAbbr[langIdx].slice(1)}`);
 
     this.container.dataset.language = langAbbr[langIdx];
     this.keyButtons.forEach((button) => {
@@ -161,9 +146,7 @@ export default class Keyboard {
         if (button.sub) {
           button.sub.classList.remove('sub-active');
           button.letter.classList.remove('sub-inactive');
-          if (!button.isFnKey && !button.sub.value) {
-            button.letter.innerText = button.symbol;
-          }
+          if (!button.isFnKey && !button.sub.value) button.letter.innerText = button.symbol;
         }
       });
     }
@@ -171,40 +154,43 @@ export default class Keyboard {
 
   generateCustomEvent = (e) => {
     e.preventDefault();
-    this.output.focus();
     const keyDiv = e.target.closest('.keyboard__key');
     if (!keyDiv) return;
     const { dataset: { code } } = e.target.closest('.keyboard__key');
 
     if (e.type === 'mouseup') {
-      this.ctrlKey = !!(code === 'Control');
+      console.log(this.keysPressed);
+      if (!this.ctrlKey) this.ctrlKey = !!(code === 'Control');
       if (!this.shiftKey) this.shiftKey = !!(code === 'ShiftLeft' || code === 'ShiftRight');
+      clearTimeout(this.timeOut); clearInterval(this.interval);
       this.handleKeyUpEvent({ code });
     } else {
-      this.ctrlKey = (code === 'Control');
+      if (!this.ctrlKey) this.ctrlKey = (code === 'Control');
       if (!this.shiftKey) this.shiftKey = (code === 'ShiftLeft' || code === 'ShiftRight');
+      this.timeOut = setTimeout(() => {
+        this.interval = setInterval(() => {
+          this.handleKeyDownEvent({ code });
+        }, 35);
+      }, 500);
       this.handleKeyDownEvent({ code });
     }
-
     this.output.focus();
   }
 
   fireKeyPress(keyObj, symbol) {
     let cursorPos = this.output.selectionStart;
-    const part1 = this.output.value.slice(0, cursorPos);
-    const part2 = this.output.value.slice(cursorPos);
+    const left = this.output.value.slice(0, cursorPos);
+    const right = this.output.value.slice(cursorPos);
 
-    const pressHandlers = {
+    const textHandlers = {
       Tab: () => {
-        this.output.value = `${part1}    ${part2}`;
-        cursorPos += 4;
+        this.output.value = `${left}\t${right}`;
+        cursorPos++;
       },
       ArrowLeft: () => {
         cursorPos = cursorPos - 1 >= 0 ? cursorPos - 1 : 0;
       },
-      ArrowRight: () => {
-        cursorPos++;
-      },
+      ArrowRight: () => cursorPos++,
       ArrowUp: () => {
         const positionFromLeft = this.output.value.slice(0, cursorPos).match(/(\n).*$(?!\1)/g) || [[1]];
         cursorPos -= positionFromLeft[0].length;
@@ -214,17 +200,22 @@ export default class Keyboard {
         cursorPos += positionFromLeft[0].length + 1;
       },
       Enter: () => {
-        this.output.value = `${part1}\n${part2}`;
+        this.output.value = `${left}\n${right}`;
         cursorPos++;
       },
+      Delete: () => {
+        this.output.value = `${left}${right.slice(1)}`;
+      },
+      Backspace: () => {
+        this.output.value = `${left.slice(0, -1)}${right}`;
+        cursorPos--;
+      },
     };
-    if (pressHandlers[keyObj.code]) {
-      pressHandlers[keyObj.code]();
-    } else if (!keyObj.isFnKey) {
+    if (textHandlers[keyObj.code]) textHandlers[keyObj.code]();
+    else if (!keyObj.isFnKey) {
       cursorPos += 1;
-      this.output.value = `${part1}${symbol || ''}${part2}`;
+      this.output.value = `${left}${symbol || ''}${right}`;
     }
-
     this.output.setSelectionRange(cursorPos, cursorPos);
   }
 }
