@@ -330,7 +330,7 @@ export default [
     keycode: '16',
   },
   {
-    symbol: 'Control',
+    symbol: 'Ctrl',
     shift: null,
     code: 'ControlLeft',
     keycode: '17',
@@ -354,33 +354,39 @@ export default [
     keycode: '225',
   },
   {
-    symbol: 'Control',
+    symbol: 'Ctrl',
     shift: null,
     code: 'ControlRight',
     keycode: '17',
   },
   {
-    symbol: 'ArrowLeft',
+    symbol: '&larr;',
     shift: null,
     code: 'ArrowLeft',
     keycode: '37',
   },
   {
-    symbol: 'ArrowUp',
+    symbol: '&uarr;',
     shift: null,
     code: 'ArrowUp',
     keycode: '38',
   },
   {
-    symbol: 'ArrowDown',
+    symbol: '&darr;',
     shift: null,
     code: 'ArrowDown',
     keycode: '40',
   },
   {
-    symbol: 'ArrowRight',
+    symbol: '&rarr;',
     shift: null,
     code: 'ArrowRight',
     keycode: '39',
+  },
+  {
+    symbol: 'Win',
+    shift: null,
+    code: 'Win',
+    keycode: '1000',
   },
 ];

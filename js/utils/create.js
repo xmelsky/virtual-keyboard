@@ -22,7 +22,7 @@ export default function create(el, classNames = '', child, parent, ...dataAttr) 
   } else if (child && typeof child === 'object') {
     element.appendChild(child);
   } else if (typeof child === 'string') {
-    element.innerText = child;
+    element.innerHTML = child;
   }
   if (parent) {
     parent.appendChild(element);
@@ -34,7 +34,7 @@ export default function create(el, classNames = '', child, parent, ...dataAttr) 
         element.setAttribute(attrName, '');
         return;
       }
-      if (attrName.match(/value|id|placeholder|cols|rows/i)) {
+      if (attrName.match(/value|id|placeholder|cols|rows|autocorrect|spellcheck/i)) {
         element.setAttribute(attrName, attrValue);
       } else {
         element.dataset[attrName] = attrValue;
