@@ -75,7 +75,7 @@ export default class Keyboard {
         this.switchUpperCase(false);
         delete this.keysPressed[code];
         if (this.keysPressed[code]) this.keysPressed[code].div.classList.remove('active');
-      } else if (code === targetCode) {
+      } else if (code === targetCode || code.match(/Alt/)) {
         this.keysPressed[code].div.classList.remove('active');
         delete this.keysPressed[code];
       }
@@ -94,16 +94,18 @@ export default class Keyboard {
       if (keyObj.code.match(/Caps/) && !this.isCaps) {
         this.isCaps = true;
         this.switchUpperCase(true);
-      } else if (keyObj.code.match(/Caps/) && this.isCaps) {
+      } else if (keyObj.code.match(/Caps/) && this.isCaps && !e.repeat) {
         this.isCaps = false;
         this.switchUpperCase(false);
       }
-      if (keyObj.code.match(/Alt/) && (ctrlKey || this.ctrlKey)) {
+      if (!e.type && keyObj.code.match(/Control/) && keyObj.isFnKey) this.ctrlKey = true;
+      if (keyObj.code.match(/Alt/g) && (ctrlKey || this.ctrlKey)) {
+        if (e.type) e.preventDefault();
         this.switchLanguage();
       }
 
       const regexp = /Tab|ArrowLeft|ArrowUp|ArrowDown|ArrowRight|Delete|Backspace|Enter/i;
-      if ((!keyObj.isFnKey && !ctrlKey) || keyObj.code.match(/Tab/) || (!e.type && keyObj.code.match(regexp))) {
+      if ((!keyObj.isFnKey && !ctrlKey) || keyObj.code.match(/Tab|Alt/) || (!e.type && keyObj.code.match(regexp))) {
         if (e.type) e.preventDefault();
         this.fireKeyPress(keyObj, (shiftKey || this.shiftKey || this.isCaps)
           ? keyObj.shift : keyObj.symbol);
@@ -174,18 +176,19 @@ export default class Keyboard {
     const { dataset: { code } } = e.target.closest('.keyboard__key');
 
     if (e.type === 'mouseup') {
-      if (!this.ctrlKey) this.ctrlKey = !!(code === 'Ctrl');
       if (!this.shiftKey) this.shiftKey = !!(code === 'ShiftLeft' || code === 'ShiftRight');
+      if (code.match(/Control/)) this.ctrlKey = false;
       clearTimeout(this.timeOut); clearInterval(this.interval);
       this.handleKeyUpEvent({ code });
     } else {
-      if (!this.ctrlKey) this.ctrlKey = (code === 'Ctrl');
       if (!this.shiftKey) this.shiftKey = (code === 'ShiftLeft' || code === 'ShiftRight');
-      this.timeOut = setTimeout(() => {
-        this.interval = setInterval(() => {
-          this.handleKeyDownEvent({ code });
-        }, 35);
-      }, 500);
+      if (!code.match(/Alt|Caps|Control/)) {
+        this.timeOut = setTimeout(() => {
+          this.interval = setInterval(() => {
+            this.handleKeyDownEvent({ code });
+          }, 35);
+        }, 500);
+      }
       this.handleKeyDownEvent({ code });
     }
     this.output.focus();
